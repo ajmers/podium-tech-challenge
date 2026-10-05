@@ -143,6 +143,11 @@ export async function startHarness(configPath, { gatewayPort = 0 } = {}) {
         stripPrefix: route.strip_prefix,
         timeoutMs: route.upstream.timeoutMs,
         upstreams: route.upstream.targets.map((t) => [...byId.values()].find((u) => t.url.endsWith(`:${u.port}`))?.id),
+        balance: route.upstream.balance,
+        targets: route.upstream.targets.map((t) => ({
+          id: [...byId.values()].find((u) => t.url.endsWith(`:${u.port}`))?.id,
+          weight: t.weight,
+        })),
         features: FEATURE_KEYS.filter((key) => route[key] !== undefined),
         rateLimit: effectiveRateLimit(route, config.gateway.globalRateLimit),
       })),

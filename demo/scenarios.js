@@ -266,6 +266,33 @@ export const scenarios = [
     },
   },
 
+  // ── Load balancing ──────────────────────────────────────────────────────
+  {
+    id: 'load-balancing',
+    group: 'Load balancing',
+    title: 'Weighted round robin (3:1)',
+    description: '/api/products has two targets weighted 3:1. Eight requests: 6 go to localhost:3003 and 2 to localhost:3004, interleaved A A B A rather than A A A B.',
+    async run(h) {
+      const results = [];
+      for (let i = 1; i <= 8; i += 1) results.push(await h.send({ path: `/api/products/${i}` }));
+      const order = results.map((r) => r.response.headers?.['x-upstream-name']);
+      const count = (id) => order.filter((name) => name === id).length;
+      const letters = order.map((name) => (name === PRODUCTS_PRIMARY ? 'A' : 'B')).join(' ');
+      return [
+        {
+          label: '8 × GET /api/products/{i}',
+          summary: { requests: 8, statusCounts: countStatuses(results), totalMs: results.reduce((n, r) => n + r.response.durationMs, 0) },
+          checks: [
+            check(`6 served by ${PRODUCTS_PRIMARY}`, count(PRODUCTS_PRIMARY) === 6),
+            check('2 served by localhost:3004', count('localhost:3004') === 2),
+            check(`Order is interleaved A A B A A A B A (got ${letters})`, letters === 'A A B A A A B A'),
+          ],
+        },
+        step('Request 3 (goes to the lighter target)', results[2], [reached(results[2], 'localhost:3004')]),
+      ];
+    },
+  },
+
   // ── Rate limiting ───────────────────────────────────────────────────────
   {
     id: 'rate-limit-fixed',

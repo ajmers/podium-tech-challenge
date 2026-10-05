@@ -41,15 +41,22 @@ async function refreshState() {
   $('#gateway-url').textContent = state.gatewayUrl;
   $('#config-path').textContent = state.configPath;
   renderUpstreams(state.upstreams);
+  routesState = state.routes;
   renderRoutes(state);
+  renderBalancer();
 }
 
+const lastCounts = new Map();
+let routesState = [];
+
 function renderUpstreams(upstreams) {
+  const hits = new Set(upstreams.filter((u) => lastCounts.has(u.id) && u.requestCount > lastCounts.get(u.id)).map((u) => u.id));
+  for (const u of upstreams) lastCounts.set(u.id, u.requestCount);
   $('#upstream-list').replaceChildren(
     ...upstreams.map((u) =>
       el(
         'div',
-        { class: `upstream ${u.up ? '' : 'down'}`, title: u.up ? 'Running' : 'Stopped' },
+        { class: `upstream ${u.up ? '' : 'down'} ${hits.has(u.id) ? 'hit' : ''}`, title: u.up ? 'Running' : 'Stopped' },
         el('span', { class: 'dot', 'aria-hidden': 'true' }),
         el('span', { class: 'id' }, u.id),
         el('span', { class: 'routes' }, u.routes.join(', ')),
@@ -297,6 +304,7 @@ $('#run-all').addEventListener('click', async (event) => {
 const PRESETS = [
   { label: 'Proxy GET', method: 'GET', path: '/api/users/42?expand=true' },
   { label: 'strip_prefix', method: 'GET', path: '/api/products/123' },
+  { label: 'Load balancing (3:1)', method: 'GET', path: '/api/products/1' },
   { label: '405', method: 'POST', path: '/api/products/1', body: '{ "x": 1 }' },
   { label: '404', method: 'GET', path: '/api/nope' },
   { label: 'Auth: no key', method: 'GET', path: '/api/internal/data' },
@@ -308,17 +316,20 @@ const PRESETS = [
 
 const form = $('#playground-form');
 $('#presets').replaceChildren(
-  el('span', { class: 'muted' }, 'Presets:'),
+  el('span', { class: 'muted' }, 'Presets (click to send):'),
   ...PRESETS.map((p) =>
     el(
       'button',
       {
         type: 'button',
-        onclick: () => {
+        onclick: (event) => {
           form.method.value = p.method;
           form.path.value = p.path;
           form.headers.value = p.headers ?? '';
           form.body.value = p.body ?? '';
+          for (const b of $('#presets').querySelectorAll('button')) b.classList.toggle('active', b === event.currentTarget);
+          // Presets send straight away, so every click shows a result.
+          form.requestSubmit();
         },
       },
       p.label,
@@ -345,10 +356,67 @@ form.addEventListener('submit', async (event) => {
   }
   $('#playground-result').replaceChildren(el('p', { class: 'muted' }, 'Sending…'));
   const result = await api('/api/request', { method: 'POST', body: { method: form.method.value, path: form.path.value, headers, body } });
+  const route = matchRoute(form.path.value);
+  if (route && result.upstream[0]) servedHistory.push({ route: route.path, id: result.upstream[0].upstream });
   $('#playground-result').replaceChildren(renderStep(result));
   submit.disabled = false;
   refreshState();
 });
+
+// Mirrors src/router.js: longest route path that matches on a segment boundary.
+function matchRoute(path) {
+  const pathname = path.split('?')[0];
+  return [...routesState]
+    .sort((a, b) => b.path.length - a.path.length)
+    .find((r) => r.path === '/' || pathname === r.path || pathname.startsWith(`${r.path}/`));
+}
+
+const servedHistory = [];
+
+function renderBalancer() {
+  const view = $('#balancer-view');
+  const route = matchRoute(form.path.value);
+  if (!route) {
+    view.replaceChildren(el('div', { class: 'balancer muted' }, 'No route matches this path, so the gateway will answer 404 itself.'));
+    return;
+  }
+  const last = servedHistory.at(-1);
+  const total = route.targets.reduce((n, t) => n + t.weight, 0);
+  view.replaceChildren(
+    el(
+      'div',
+      { class: 'balancer' },
+      el(
+        'div',
+        { class: 'balancer-head' },
+        el('span', {}, 'Route ', el('code', {}, route.path), ' → load balancer'),
+        el('span', { class: 'feature on' }, route.targets.length > 1 ? route.balance : 'single target'),
+      ),
+      el(
+        'div',
+        { class: 'targets' },
+        route.targets.map((t) =>
+          el(
+            'div',
+            { class: `target ${last?.route === route.path && last.id === t.id ? 'served' : ''}` },
+            el('code', {}, t.id),
+            route.targets.length > 1 ? el('span', { class: 'muted' }, `weight ${t.weight} · ${Math.round((t.weight / total) * 100)}%`) : null,
+            el('span', { class: 'count' }, `${servedHistory.filter((h) => h.route === route.path && h.id === t.id).length} served`),
+          ),
+        ),
+      ),
+      el(
+        'div',
+        { class: 'history muted' },
+        'Recent: ',
+        servedHistory.filter((h) => h.route === route.path).slice(-12).map((h) => el('code', { class: 'pill-id' }, h.id.split(':')[1])),
+      ),
+    ),
+  );
+}
+
+form.path.addEventListener('input', renderBalancer);
+for (const button of $('#presets').querySelectorAll('button')) button.addEventListener('click', renderBalancer);
 
 // ── Test suite ────────────────────────────────────────────────────────────
 $('#run-tests').addEventListener('click', async (event) => {
