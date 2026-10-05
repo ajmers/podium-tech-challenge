@@ -106,7 +106,7 @@ gateway.yaml        Example config (the spec)
 
 **Config features** (listed in planned build order)
 
-- [ ] API key auth (`auth.type: api_key`)
+- [x] API key auth (`auth.type: api_key`): 401 on missing/invalid key, constant-time comparison, key header not forwarded upstream
 - [ ] Rate limiting: `global_rate_limit` + per-route `rate_limit`; `fixed_window` / `sliding_window`; per `ip` / `global`
 - [ ] Load balancing (`round_robin`, `weighted_round_robin`). *Partial: `targets` is parsed and validated, but only the first target is used*
 - [ ] Circuit breaker
