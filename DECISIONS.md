@@ -1,4 +1,4 @@
-Prioritization: 
+## Prioritization:
 - scaffold first, then start implementing
 - core requirements come before config features - start with proxying before defining individual route matching behaviors so we can define error behaviors (disconnect, 502, 504) before anyting depends on it
 - build a request pipeline, modeled on nginx's phases and modules, for extensibility, code clarity / cleanliness (see 'pipeline' section beow)
@@ -10,27 +10,31 @@ Prioritization:
     - [not started] response transforms: not a security or reliability / performance concern but obviously it's important that we are delivering data in the right shape to customers
     - [not started] Retry - while obviously very important in a production system in order to keep SLAs, I consider this secondary to to the 'does this work in the happy path' cases as well as 'does the mechanism a way to auto heal / function well in when certain instances are not responding' ; this one is a little bit more of an edge case / nice to have
 
-Proxy:
+### Proxy:
 - stream request bodies instead of holding in memory to control memory use
 - global timeout was chosen to be the time until the upstream *starts* responding. If it hasn't started in time we return 504, but once it starts the body can take as long as it needs
 
-Pipeline:
+### Pipeline:
 - makes extensibility very clear-cut
 - makes ordering of gateway features explicit and easy to read
 - cleans up the gateway.js file so it doesn't grow forever
 
-Rate limiting:
+### Rate limiting:
 - I chose to implement the sliding_window rate limiting using the two window approach - instead of storing timestamps. This allows us to use constant memory (instead of having to store increasing large arrays of timestamps for each client and for each route), and also fixes a boundary issue
 
-Load balancing:
+### Load balancing:
 - use same algorithm as nginx for weighted round robin (smooth weighted round robin)
 - round robin ignores weights and is the default if balance is not specified
 
-Circuit breaker:
+### Circuit breaker:
 - what counts as a failure: 5xx responses
 - a successful call within the circuit breaker window doesn't 'reset' the state
 
-
-What I'd implement next with more time:
-- Redis (or similar cacheing) to store counters for timeout (they live in memory, one gateway process at a time). Running several instances of our gateway would 
+## What I'd implement next with more time:
+- Redis (or similar cacheing) to store counters for timeout (they live in memory, one gateway process at a time). Running several instances of our gateway would
 - Have load balancers check health of targets as part of their balancing algorithm
+
+## How I used AI
+I used Claude and VsCode.
+
+I gave added the requirements to my context via the claude file.
