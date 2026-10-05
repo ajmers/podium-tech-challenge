@@ -1,0 +1,20 @@
+{
+  "name": "gatewaykit",
+  "version": "0.1.0",
+  "description": "A lightweight, config-driven API gateway",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js gateway.yaml",
+    "dev": "node --watch src/index.js gateway.yaml",
+    "mock": "node mock/upstream.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:watch": "node --test --watch \"test/**/*.test.js\""
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  }
+}
