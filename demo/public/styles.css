@@ -194,6 +194,11 @@ td code { white-space: nowrap; }
 .feature.on { background: var(--ok-bg); color: var(--ok); }
 .feature.off { background: var(--surface-2); color: var(--muted); border: 1px dashed var(--border); }
 
+.rate-limit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.rate-limit code { margin-right: 2px; }
+.rate-limit .feature { margin: 0; }
+.rate-limit .source { font-size: 12px; flex-basis: 100%; }
+
 /* ── Test suite ──────────────────────────────────────── */
 .tests-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
 .test-stats { display: flex; gap: 8px; margin-left: auto; }

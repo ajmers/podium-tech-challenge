@@ -72,7 +72,7 @@ function renderUpstreams(upstreams) {
 function renderRoutes(state) {
   const implemented = new Set(state.implementedFeatures);
   $('#routes-table').replaceChildren(
-    el('thead', {}, el('tr', {}, ['Path', 'Methods', 'strip_prefix', 'Timeout', 'Upstreams', 'Features'].map((h) => el('th', {}, h)))),
+    el('thead', {}, el('tr', {}, ['Path', 'Methods', 'strip_prefix', 'Timeout', 'Upstreams', 'Rate limit', 'Features'].map((h) => el('th', {}, h)))),
     el(
       'tbody',
       {},
@@ -85,6 +85,7 @@ function renderRoutes(state) {
           el('td', {}, r.stripPrefix ? 'yes' : 'no'),
           el('td', {}, `${r.timeoutMs / 1000}s`),
           el('td', {}, r.upstreams.map((u) => el('div', {}, el('code', {}, u)))),
+          el('td', {}, rateLimitCell(r.rateLimit)),
           el(
             'td',
             {},
@@ -95,6 +96,18 @@ function renderRoutes(state) {
         ),
       ),
     ),
+  );
+}
+
+function rateLimitCell(limit) {
+  if (!limit) return el('span', { class: 'muted' }, 'none');
+  return el(
+    'div',
+    { class: 'rate-limit' },
+    el('code', {}, `${limit.requests} / ${limit.windowMs / 1000}s`),
+    el('span', { class: 'feature on' }, limit.strategy),
+    el('span', { class: 'feature on' }, `per ${limit.per}`),
+    el('span', { class: 'muted source' }, limit.source === 'route' ? 'route rate_limit' : 'from global_rate_limit'),
   );
 }
 

@@ -7,6 +7,7 @@ import { createMockUpstream } from '../mock/upstream.js';
 import { normalizeConfig } from '../src/config/load.js';
 import { createGateway } from '../src/gateway.js';
 import { DEFAULT_STAGES } from '../src/stages/index.js';
+import { parseRateLimit } from '../src/stages/rate-limit.js';
 
 /**
  * Runs a real gateway from a config file, with one in-process mock upstream
@@ -143,6 +144,7 @@ export async function startHarness(configPath, { gatewayPort = 0 } = {}) {
         timeoutMs: route.upstream.timeoutMs,
         upstreams: route.upstream.targets.map((t) => [...byId.values()].find((u) => t.url.endsWith(`:${u.port}`))?.id),
         features: FEATURE_KEYS.filter((key) => route[key] !== undefined),
+        rateLimit: effectiveRateLimit(route, config.gateway.globalRateLimit),
       })),
       upstreams: [...byId.values()].map((u) => ({
         id: u.id,
@@ -171,6 +173,14 @@ const FEATURE_KEYS = [
   'request_transform',
   'response_transform',
 ];
+
+/** The rate limit that applies to a route, and where it comes from. */
+function effectiveRateLimit(route, globalRateLimit) {
+  const block = route.rate_limit ?? globalRateLimit;
+  if (!block) return null;
+  const { requests, windowMs, strategy, per } = parseRateLimit(block, 'rate_limit');
+  return { requests, windowMs, strategy, per, source: route.rate_limit ? 'route' : 'global' };
+}
 
 function upstreamTargets(route) {
   if (route.upstream?.url) return [route.upstream];
