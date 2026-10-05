@@ -45,6 +45,9 @@ async function handle(req, res) {
   if (req.method === 'POST' && scenarioMatch) {
     const scenario = scenarios.find((s) => s.id === scenarioMatch[1]);
     if (!scenario) return json(res, 404, { error: 'unknown scenario' });
+    // Each scenario gets a fresh gateway so counters from earlier runs
+    // (rate limits, later the circuit breaker) don't leak between scenarios.
+    await harness.restartGateway();
     const steps = await scenario.run(harness);
     const pass = steps.every((s) => s.checks.every((c) => c.pass));
     return json(res, 200, { id: scenario.id, pass, steps });

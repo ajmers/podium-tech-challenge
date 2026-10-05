@@ -70,7 +70,8 @@ mock upstream for each upstream URL in the config. No other setup is needed, and
 it won't conflict with a gateway already running on 8080. It has four tabs:
 
 - **Scenarios**: one-click runs of the behaviours the test suite covers (proxying, 404/405,
-  `strip_prefix`, 502/504, client disconnects, concurrency, auth). Each request is
+  `strip_prefix`, 502/504, client disconnects, auth, rate limiting). Each scenario
+  runs against a freshly restarted gateway so counters don't carry over between runs. Each request is
   shown three ways: what the client sent, what the upstream actually received (or that
   it was never reached), and what the gateway returned, plus pass/fail checks.
 - **Playground**: send any request through the gateway, with presets.
@@ -134,7 +135,7 @@ gateway.yaml        Example config (the spec)
 **Config features** (listed in planned build order)
 
 - [x] API key auth (`auth.type: api_key`): 401 on missing/invalid key, constant-time comparison, key header not forwarded upstream
-- [ ] Rate limiting: `global_rate_limit` + per-route `rate_limit`; `fixed_window` / `sliding_window`; per `ip` / `global`
+- [x] Rate limiting: `global_rate_limit` + per-route `rate_limit` (route replaces global); `fixed_window` / `sliding_window`; per `ip` / `global`; 429 + `Retry-After`
 - [ ] Load balancing (`round_robin`, `weighted_round_robin`). *Partial: `targets` is parsed and validated, but only the first target is used*
 - [ ] Circuit breaker
 - [ ] Retries with `fixed` / `exponential` backoff

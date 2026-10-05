@@ -1,4 +1,5 @@
 import { authStage } from './auth.js';
+import { rateLimitStage } from './rate-limit.js';
 
 /**
  * The default stage order. Order matters: cheap checks that reject requests
@@ -10,4 +11,4 @@ import { authStage } from './auth.js';
  * To add a feature: create a stage module in this directory (see
  * src/pipeline.js for the shape) and add it to this list.
  */
-export const DEFAULT_STAGES = [authStage];
+export const DEFAULT_STAGES = [authStage, rateLimitStage];

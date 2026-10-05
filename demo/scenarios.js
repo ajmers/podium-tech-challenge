@@ -218,34 +218,6 @@ export const scenarios = [
       ];
     },
   },
-  {
-    id: 'concurrency',
-    group: 'Resilience',
-    title: '50 concurrent requests',
-    description: 'Fires 50 requests at once. Every one should be proxied to the right path with no mix-ups.',
-    async run(h) {
-      const started = performance.now();
-      const results = await Promise.all(Array.from({ length: 50 }, (_, i) => h.send({ path: `/api/users/${i}` })));
-      const statusCounts = {};
-      for (const r of results) statusCounts[r.response.status] = (statusCounts[r.response.status] ?? 0) + 1;
-      const allMatched = results.every((r, i) => r.response.body?.url === `/api/users/${i}`);
-      return [
-        {
-          label: '50 × GET /api/users/{i} in parallel',
-          summary: {
-            requests: results.length,
-            statusCounts,
-            totalMs: Math.round(performance.now() - started),
-          },
-          checks: [
-            check('All 50 return 200', statusCounts[200] === 50),
-            check('Each response matches its own request', allMatched),
-          ],
-        },
-      ];
-    },
-  },
-
   // ── Auth ────────────────────────────────────────────────────────────────
   {
     id: 'auth-missing',
@@ -293,4 +265,91 @@ export const scenarios = [
       return [step('GET /api/users/../internal/data', r, [status(r, 401), notReached(r)])];
     },
   },
+
+  // ── Rate limiting ───────────────────────────────────────────────────────
+  {
+    id: 'rate-limit-fixed',
+    group: 'Rate limiting',
+    title: 'Route limit: 10 per 10s (fixed window)',
+    description: '/api/orders allows 10 requests per 10s per IP. Requests 11 and 12 get 429 with Retry-After and never reach the upstream.',
+    async run(h) {
+      const results = [];
+      for (let i = 1; i <= 12; i += 1) results.push(await h.send({ path: `/api/orders/${i}` }));
+      const statuses = results.map((r) => r.response.status);
+      const remaining = results.slice(0, 10).map((r) => r.response.headers?.['x-ratelimit-remaining']);
+      const eleventh = results[10];
+      return [
+        {
+          label: '12 × GET /api/orders/{i}, one after another',
+          summary: { requests: 12, statusCounts: countStatuses(results), totalMs: results.reduce((n, r) => n + r.response.durationMs, 0) },
+          checks: [
+            check('Requests 1-10 return 200', statuses.slice(0, 10).every((s) => s === 200)),
+            check('X-RateLimit-Remaining counts down 9 → 0', remaining.join(',') === '9,8,7,6,5,4,3,2,1,0'),
+            check('Requests 11-12 return 429', statuses[10] === 429 && statuses[11] === 429),
+          ],
+        },
+        step('Request 11 (over the limit)', eleventh, [
+          status(eleventh, 429),
+          check('Retry-After header is set (≤ 10s)', Number(eleventh.response.headers?.['retry-after']) > 0 && Number(eleventh.response.headers?.['retry-after']) <= 10),
+          check('Body is { error: "rate_limited", retry_after }', eleventh.response.body?.error === 'rate_limited' && Number.isInteger(eleventh.response.body?.retry_after)),
+          notReached(eleventh),
+        ]),
+      ];
+    },
+  },
+  {
+    id: 'rate-limit-concurrency',
+    group: 'Rate limiting',
+    title: '50 concurrent vs a 30/min limit',
+    description: '/api/users allows 30 per minute (sliding window). 50 requests at the same moment: exactly 30 get through, with no race between the check and the increment.',
+    async run(h) {
+      // Per-request upstream attribution isn't reliable with requests in
+      // flight together, so compare the upstream's total before and after.
+      const upstreamCount = () => h.state().upstreams.find((u) => u.id === USERS).requestCount;
+      const before = upstreamCount();
+      const started = performance.now();
+      const results = await Promise.all(Array.from({ length: 50 }, (_, i) => h.send({ path: `/api/users/${i}` })));
+      const counts = countStatuses(results);
+      const proxied = results.filter((r) => r.response.status === 200);
+      return [
+        {
+          label: '50 × GET /api/users/{i} in parallel',
+          summary: { requests: 50, statusCounts: counts, totalMs: Math.round(performance.now() - started) },
+          checks: [
+            check('Exactly 30 return 200', counts[200] === 30),
+            check('Exactly 20 return 429', counts[429] === 20),
+            check('Each 200 matches its own request', proxied.every((r) => r.response.body?.url === r.request.path)),
+            check('Only 30 requests reach the upstream', upstreamCount() - before === 30),
+          ],
+        },
+      ];
+    },
+  },
+  {
+    id: 'rate-limit-global',
+    group: 'Rate limiting',
+    title: 'global_rate_limit as the default',
+    description: '/api/legacy has no rate_limit of its own, so it gets global_rate_limit (100 per 60s). 105 parallel requests: 100 pass.',
+    async run(h) {
+      const results = await Promise.all(Array.from({ length: 105 }, () => h.send({ path: '/api/legacy/ping' })));
+      const counts = countStatuses(results);
+      return [
+        {
+          label: '105 × GET /api/legacy/ping in parallel',
+          summary: { requests: 105, statusCounts: counts, totalMs: Math.max(...results.map((r) => r.response.durationMs)) },
+          checks: [
+            check('Exactly 100 return 200', counts[200] === 100),
+            check('Exactly 5 return 429', counts[429] === 5),
+            check('X-RateLimit-Limit is 100 (the global limit)', results[0].response.headers?.['x-ratelimit-limit'] === '100'),
+          ],
+        },
+      ];
+    },
+  },
 ];
+
+function countStatuses(results) {
+  const counts = {};
+  for (const r of results) counts[r.response.status] = (counts[r.response.status] ?? 0) + 1;
+  return counts;
+}

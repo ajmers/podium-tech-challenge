@@ -41,10 +41,21 @@ export async function startHarness(configPath, { gatewayPort = 0 } = {}) {
   }
 
   const config = normalizeConfig(raw);
-  const gateway = createGateway(config);
-  gateway.listen(gatewayPort, '127.0.0.1');
-  await once(gateway, 'listening');
-  const gatewayAddress = gateway.address();
+  let gateway;
+  let gatewayAddress = { port: gatewayPort };
+
+  /** (Re)start the gateway on the same port, so in-memory state like rate-limit counters starts fresh. */
+  async function restartGateway() {
+    if (gateway) {
+      gateway.closeAllConnections();
+      await new Promise((resolve) => gateway.close(resolve));
+    }
+    gateway = createGateway(config);
+    gateway.listen(gatewayAddress.port, '127.0.0.1');
+    await once(gateway, 'listening');
+    gatewayAddress = gateway.address();
+  }
+  await restartGateway();
   const byId = new Map([...upstreams.values()].map((u) => [u.id, u]));
 
   function snapshot() {
@@ -148,7 +159,7 @@ export async function startHarness(configPath, { gatewayPort = 0 } = {}) {
     for (const u of byId.values()) await stopUpstream(u);
   }
 
-  return { send, setUpstream, state, close };
+  return { send, setUpstream, restartGateway, state, close };
 }
 
 const FEATURE_KEYS = [
