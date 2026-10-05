@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { ConfigError, loadConfigFile } from './config/load.js';
 import { createGateway } from './gateway.js';
+import { findUnimplementedFeatures } from './stages/index.js';
 
 const SHUTDOWN_GRACE_MS = 10_000;
 
@@ -24,6 +25,10 @@ async function main() {
       process.exit(1);
     }
     throw err;
+  }
+
+  for (const { path, feature } of findUnimplementedFeatures(config.routes)) {
+    console.warn(`Warning: route "${path}" configures ${feature}, which is not implemented yet and will be ignored`);
   }
 
   const port = Number(process.env.PORT ?? config.gateway.port);

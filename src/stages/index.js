@@ -12,3 +12,23 @@ import { rateLimitStage } from './rate-limit.js';
  * src/pipeline.js for the shape) and add it to this list.
  */
 export const DEFAULT_STAGES = [authStage, rateLimitStage];
+
+// Route-level config blocks the schema defines. Each is handled by the stage
+// of the same name, or (for upstream-level features) elsewhere.
+const ROUTE_FEATURES = ['auth', 'rate_limit', 'circuit_breaker', 'retry', 'request_transform', 'response_transform', 'health_check'];
+
+/**
+ * Config blocks that a route sets but no stage implements yet. These are
+ * ignored at runtime, so the gateway warns at startup rather than letting
+ * someone believe e.g. a circuit breaker is protecting a route.
+ * @returns {{ path: string, feature: string }[]}
+ */
+export function findUnimplementedFeatures(routes, stages = DEFAULT_STAGES) {
+  const implemented = new Set(stages.map((stage) => stage.name));
+  return routes.flatMap((route) =>
+    ROUTE_FEATURES.filter((feature) => route[feature] !== undefined && !implemented.has(feature)).map((feature) => ({
+      path: route.path,
+      feature,
+    })),
+  );
+}

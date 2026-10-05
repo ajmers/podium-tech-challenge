@@ -189,3 +189,19 @@ describe('gateway pipeline', () => {
     );
   });
 });
+
+describe('findUnimplementedFeatures', () => {
+  it('lists configured features that no stage implements', async () => {
+    const { findUnimplementedFeatures } = await import('../src/stages/index.js');
+    const routes = [
+      { path: '/a', auth: {}, circuit_breaker: {} },
+      { path: '/b', rate_limit: {}, retry: {}, request_transform: {} },
+      { path: '/c' },
+    ];
+    assert.deepEqual(findUnimplementedFeatures(routes, [{ name: 'auth' }, { name: 'rate_limit' }]), [
+      { path: '/a', feature: 'circuit_breaker' },
+      { path: '/b', feature: 'retry' },
+      { path: '/b', feature: 'request_transform' },
+    ]);
+  });
+});
