@@ -12,7 +12,8 @@
     "dev": "node --watch src/index.js gateway.yaml",
     "mock": "node mock/upstream.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "test:watch": "node --test --watch \"test/**/*.test.js\""
+    "test:watch": "node --test --watch \"test/**/*.test.js\"",
+    "demo": "node demo/server.js"
   },
   "dependencies": {
     "yaml": "^2.9.1"

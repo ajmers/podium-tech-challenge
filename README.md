@@ -59,6 +59,28 @@ node mock/upstream.js 3001 # or pick specific ports
 The mock upstream echoes requests back as JSON and has a few test endpoints:
 `/healthz`, `/slow?ms=N`, `/status/:code`, and `/flaky`.
 
+## Demo UI
+
+```bash
+npm run demo     # then open http://localhost:8081
+```
+
+The demo starts a real gateway from `gateway.yaml` on a random port, with an in-process
+mock upstream for each upstream URL in the config. No other setup is needed, and
+it won't conflict with a gateway already running on 8080. It has four tabs:
+
+- **Scenarios**: one-click runs of the behaviours the test suite covers (proxying, 404/405,
+  `strip_prefix`, 502/504, client disconnects, concurrency, auth). Each request is
+  shown three ways: what the client sent, what the upstream actually received (or that
+  it was never reached), and what the gateway returned, plus pass/fail checks.
+- **Playground**: send any request through the gateway, with presets.
+- **Routes**: the loaded routes and which of their config features are implemented.
+- **Test suite**: runs `npm test` and streams the output.
+
+The upstream chips at the top let you stop and start each mock to see failures live.
+Set `DEMO_PORT` or `GATEWAY_PORT` to change ports. The scenarios assume the routes in
+`gateway.yaml`; the playground works with any config (`npm run demo -- other.yaml`).
+
 ## Running the tests
 
 ```bash
@@ -85,6 +107,11 @@ src/
   http-utils.js     JSON / error response helpers
 mock/
   upstream.js       Mock upstream server (used by tests and `npm run mock`)
+demo/
+  server.js         Demo UI server (`npm run demo`)
+  harness.js        Runs gateway + mocks in-process and records each request's path
+  scenarios.js      The scenarios shown in the UI
+  public/           Static front end (no build step)
 test/
   helpers/          Start gateway / upstream on ephemeral ports
   *.test.js

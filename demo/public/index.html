@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GatewayKit Demo</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">◆</span>
+        <span class="name">GatewayKit</span>
+        <span class="pill">demo</span>
+      </div>
+      <div class="meta">
+        <span>Gateway <code id="gateway-url">…</code></span>
+        <span class="config">Config <code id="config-path">…</code></span>
+      </div>
+    </header>
+
+    <section class="upstreams" aria-label="Mock upstreams">
+      <span class="section-label">Mock upstreams</span>
+      <div id="upstream-list" class="upstream-list"></div>
+    </section>
+
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="scenarios" aria-selected="true">Scenarios</button>
+      <button role="tab" data-tab="playground" aria-selected="false">Playground</button>
+      <button role="tab" data-tab="routes" aria-selected="false">Routes</button>
+      <button role="tab" data-tab="tests" aria-selected="false">Test suite</button>
+    </nav>
+
+    <main>
+      <section id="tab-scenarios" class="tab-panel scenarios-layout">
+        <aside class="sidebar">
+          <div class="sidebar-head">
+            <button id="run-all" class="btn primary">Run all</button>
+            <span id="run-summary" class="muted"></span>
+          </div>
+          <div id="scenario-list"></div>
+        </aside>
+        <div id="scenario-detail" class="detail">
+          <p class="empty">Pick a scenario on the left, or press <strong>Run all</strong>.</p>
+        </div>
+      </section>
+
+      <section id="tab-playground" class="tab-panel" hidden>
+        <form id="playground-form" class="playground">
+          <div class="row">
+            <select name="method" aria-label="Method">
+              <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option>
+            </select>
+            <input name="path" aria-label="Path" value="/api/users/42?expand=true" spellcheck="false" />
+            <button class="btn primary" type="submit">Send</button>
+          </div>
+          <div class="presets" id="presets"></div>
+          <div class="row two">
+            <label>Headers <span class="muted">(one per line, <code>Name: value</code>)</span>
+              <textarea name="headers" rows="5" spellcheck="false"></textarea>
+            </label>
+            <label>Body <span class="muted">(JSON or text)</span>
+              <textarea name="body" rows="5" spellcheck="false"></textarea>
+            </label>
+          </div>
+        </form>
+        <div id="playground-result"></div>
+      </section>
+
+      <section id="tab-routes" class="tab-panel" hidden>
+        <p class="muted">Routes loaded from the config. Features marked <span class="feature on">on</span> are implemented; <span class="feature off">off</span> are configured but not built yet.</p>
+        <div class="table-wrap"><table id="routes-table"></table></div>
+      </section>
+
+      <section id="tab-tests" class="tab-panel" hidden>
+        <div class="tests-head">
+          <button id="run-tests" class="btn primary">Run test suite</button>
+          <code class="muted">npm test</code>
+          <div id="test-stats" class="test-stats"></div>
+        </div>
+        <pre id="test-output" class="test-output"><span class="muted">Runs the real node:test suite and streams its output here.</span></pre>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

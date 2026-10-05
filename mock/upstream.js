@@ -4,12 +4,13 @@ import http from 'node:http';
 /**
  * A tiny configurable upstream used by tests and for local manual testing.
  *
- * Endpoints (relative to whatever path the gateway forwards):
- *   GET  /healthz          -> 200 ok
- *   ANY  /slow?ms=N        -> responds after N ms (default 2000)
- *   ANY  /status/:code     -> responds with that status code
- *   ANY  /flaky            -> fails with 503 every other request
- *   ANY  *                 -> 200 echo of method, url, headers, body
+ * Endpoints match on the *end* of the path, so they work behind any route
+ * prefix (e.g. "/api/orders/slow" as well as "/slow"):
+ *   GET  .../healthz          -> 200 ok
+ *   ANY  .../slow?ms=N        -> responds after N ms (default 2000)
+ *   ANY  .../status/:code     -> responds with that status code
+ *   ANY  .../flaky            -> fails with 503 every other request
+ *   ANY  *                    -> 200 echo of method, url, headers, body
  *
  * Every response carries X-Upstream-Name so tests can tell targets apart.
  */
@@ -38,19 +39,19 @@ export function createMockUpstream({ name = 'mock' } = {}) {
       res.end(payload);
     };
 
-    if (url.pathname === '/healthz') return send(200, { status: 'ok' });
+    if (url.pathname.endsWith('/healthz')) return send(200, { status: 'ok' });
 
-    if (url.pathname === '/slow') {
+    if (url.pathname.endsWith('/slow')) {
       const ms = Number(url.searchParams.get('ms') ?? 2000);
       const timer = setTimeout(() => send(200, { slow: true, ms }), ms);
       res.on('close', () => clearTimeout(timer));
       return;
     }
 
-    const statusMatch = /^\/status\/(\d{3})$/.exec(url.pathname);
+    const statusMatch = /\/status\/(\d{3})$/.exec(url.pathname);
     if (statusMatch) return send(Number(statusMatch[1]), { status: Number(statusMatch[1]) });
 
-    if (url.pathname === '/flaky') {
+    if (url.pathname.endsWith('/flaky')) {
       flakyCounter += 1;
       return flakyCounter % 2 === 1 ? send(503, { flaky: 'fail' }) : send(200, { flaky: 'ok' });
     }
