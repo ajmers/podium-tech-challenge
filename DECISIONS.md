@@ -15,3 +15,11 @@ Pipeline:
 - makes extensibility very clear-cut
 - makes ordering of gateway features explicit and easy to read
 - cleans up the gateway.js file so it doesn't grow forever
+
+Rate limiting:
+- I chose to implement the sliding_window rate limiting using the two window approach - instead of storing timestamps. This allows us to use constant memory (instead of having to store increasing large arrays of timestamps for each client and for each route), and also fixes a boundary issue
+
+
+
+What I'd implement next with more time:
+- Redis (or similar cacheing) to store counters for timeout (they live in memory, one gateway process at a time). Running several instances of our gateway would 
