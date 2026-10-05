@@ -102,6 +102,7 @@ src/
   pipeline.js       Per-route stage pipeline (how features plug in)
   stages/           One module per config feature; index.js sets the order
   proxy.js          Streams requests to an upstream; timeouts, 502/504
+  balancer.js       Picks the target for each request (round robin / weighted)
   config/
     load.js         YAML loading, validation, normalization
     duration.js     "30s" / "500ms" duration parsing
@@ -136,7 +137,7 @@ gateway.yaml        Example config (the spec)
 
 - [x] API key auth (`auth.type: api_key`): 401 on missing/invalid key, constant-time comparison, key header not forwarded upstream
 - [x] Rate limiting: `global_rate_limit` + per-route `rate_limit` (route replaces global); `fixed_window` / `sliding_window`; per `ip` / `global`; 429 + `Retry-After`
-- [ ] Load balancing (`round_robin`, `weighted_round_robin`). *Partial: `targets` is parsed and validated, but only the first target is used*
+- [x] Load balancing: `round_robin` (default) and `weighted_round_robin` (smooth, nginx-style: 3:1 gives A A B A)
 - [ ] Circuit breaker
 - [ ] Retries with `fixed` / `exponential` backoff
 - [ ] Request / response header transforms

@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { sendError, sendJson } from './http-utils.js';
+import { createBalancer } from './balancer.js';
 import { buildRouteHandler } from './pipeline.js';
 import { createProxy } from './proxy.js';
 import { createRouter } from './router.js';
@@ -28,11 +29,14 @@ export function createGateway(config, { now = Date.now, stages = DEFAULT_STAGES 
   const router = createRouter(config.routes);
   const proxy = createProxy();
 
+  // One balancer per route, so each route rotates through its own targets.
+  const balancers = new Map(config.routes.map((route) => [route, createBalancer(route.upstream)]));
+
   // Innermost handler of every pipeline: send the request upstream and record
   // the outcome so outer stages can react to it on the way out.
   const forward = async (ctx) => {
     ctx.outcome = await proxy.forward(ctx.req, ctx.res, {
-      target: pickTarget(ctx.route),
+      target: balancers.get(ctx.route).pick(),
       path: ctx.upstreamPath + ctx.search,
       timeoutMs: ctx.route.upstream.timeoutMs,
     });
@@ -103,9 +107,4 @@ export function createGateway(config, { now = Date.now, stages = DEFAULT_STAGES 
   }
 
   return server;
-}
-
-// TODO: load balancing (round_robin / weighted_round_robin) replaces this.
-function pickTarget(route) {
-  return route.upstream.targets[0].url;
 }

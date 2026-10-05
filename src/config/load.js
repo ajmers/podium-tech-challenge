@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { parse as parseYaml } from 'yaml';
 import { parseDuration } from './duration.js';
+import { BALANCE_STRATEGIES } from '../balancer.js';
 
 export class ConfigError extends Error {
   constructor(message) {
@@ -128,9 +129,15 @@ function normalizeUpstream(upstream, where, { globalTimeoutMs }) {
     }
   });
 
+  const balance = upstream.balance ?? 'round_robin';
+  if (!BALANCE_STRATEGIES.includes(balance)) {
+    throw new ConfigError(`${where}.balance must be one of: ${BALANCE_STRATEGIES.join(', ')}`);
+  }
+
   return {
     ...upstream,
     targets,
+    balance,
     timeoutMs: upstream.timeout === undefined ? globalTimeoutMs : wrapDuration(upstream.timeout, `${where}.timeout`),
   };
 }
