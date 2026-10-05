@@ -293,6 +293,34 @@ export const scenarios = [
     },
   },
 
+  // ── Circuit breaker ─────────────────────────────────────────────────────
+  {
+    id: 'circuit-breaker',
+    group: 'Circuit breaker',
+    title: 'Trips after 5 failures',
+    description: '/api/internal trips after 5 failures within 60s. Five upstream 503s pass through; the 6th request is rejected by the gateway for 30s without reaching the upstream. Watch the Circuit breakers strip at the top.',
+    async run(h) {
+      const headers = { 'X-API-Key': VALID_KEY };
+      const failures = [];
+      for (let i = 0; i < 5; i += 1) failures.push(await h.send({ path: '/api/internal/status/503', headers }));
+      const tripped = await h.send({ path: '/api/internal/ok', headers });
+      const breaker = h.state().breakers.find((b) => b.path === '/api/internal');
+      return [
+        {
+          label: '5 × GET /api/internal/status/503',
+          summary: { requests: 5, statusCounts: countStatuses(failures), totalMs: failures.reduce((n, r) => n + r.response.durationMs, 0) },
+          checks: [check('All 5 reach the upstream and return its 503', failures.every((r) => r.response.status === 503 && r.upstream.length === 1))],
+        },
+        step('6th request: GET /api/internal/ok', tripped, [
+          status(tripped, 503),
+          check('Body is { error: "service_unavailable", retry_after }', tripped.response.body?.error === 'service_unavailable' && tripped.response.body?.retry_after > 0),
+          notReached(tripped),
+          check(`Breaker is OPEN (retry in ${breaker?.retryAfterSeconds}s)`, breaker?.state === 'open'),
+        ]),
+      ];
+    },
+  },
+
   // ── Rate limiting ───────────────────────────────────────────────────────
   {
     id: 'rate-limit-fixed',

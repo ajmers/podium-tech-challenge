@@ -151,6 +151,10 @@ export async function startHarness(configPath, { gatewayPort = 0 } = {}) {
         features: FEATURE_KEYS.filter((key) => route[key] !== undefined),
         rateLimit: effectiveRateLimit(route, config.gateway.globalRateLimit),
       })),
+      breakers: gateway
+        .inspectRoutes()
+        .filter((r) => r.stages.circuit_breaker)
+        .map((r) => ({ path: r.path, ...r.stages.circuit_breaker })),
       upstreams: [...byId.values()].map((u) => ({
         id: u.id,
         routes: u.routes,

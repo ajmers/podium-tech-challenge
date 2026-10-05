@@ -41,6 +41,7 @@ async function refreshState() {
   $('#gateway-url').textContent = state.gatewayUrl;
   $('#config-path').textContent = state.configPath;
   renderUpstreams(state.upstreams);
+  renderBreakers(state.breakers);
   routesState = state.routes;
   renderRoutes(state);
   renderBalancer();
@@ -73,6 +74,32 @@ function renderUpstreams(upstreams) {
         ),
       ),
     ),
+  );
+}
+
+const BREAKER_LABELS = { closed: 'CLOSED', open: 'OPEN', half_open: 'HALF-OPEN' };
+
+function renderBreakers(breakers) {
+  $('#breaker-list').replaceChildren(
+    ...(breakers.length
+      ? breakers.map((b) =>
+          el(
+            'div',
+            { class: `breaker ${b.state}` },
+            el('code', {}, b.path),
+            el('span', { class: 'breaker-state' }, BREAKER_LABELS[b.state]),
+            el(
+              'span',
+              { class: 'muted' },
+              b.state === 'open'
+                ? `rejecting for ${b.retryAfterSeconds}s`
+                : b.state === 'half_open'
+                  ? 'next request is a trial'
+                  : `${b.failures}/${b.threshold} failures in window`,
+            ),
+          ),
+        )
+      : [el('span', { class: 'muted' }, 'none configured')]),
   );
 }
 
@@ -310,6 +337,8 @@ const PRESETS = [
   { label: 'Auth: no key', method: 'GET', path: '/api/internal/data' },
   { label: 'Auth: valid key', method: 'GET', path: '/api/internal/data', headers: 'X-API-Key: sk_live_abc123' },
   { label: 'Upstream 503', method: 'GET', path: '/api/legacy/status/503' },
+  { label: 'Breaker: send failure', method: 'GET', path: '/api/internal/status/503', headers: 'X-API-Key: sk_live_abc123' },
+  { label: 'Breaker: send OK', method: 'GET', path: '/api/internal/ok', headers: 'X-API-Key: sk_live_abc123' },
   { label: 'Timeout (5s)', method: 'GET', path: '/api/orders/slow?ms=6000' },
   { label: 'POST JSON', method: 'POST', path: '/api/users', body: '{ "name": "Ada" }' },
 ];
@@ -473,6 +502,8 @@ for (const tab of document.querySelectorAll('[role=tab]')) {
     for (const panel of document.querySelectorAll('.tab-panel')) panel.hidden = panel.id !== `tab-${tab.dataset.tab}`;
   });
 }
+
+setInterval(refreshState, 1000);
 
 // ── Boot ──────────────────────────────────────────────────────────────────
 scenarios = await api('/api/scenarios');
