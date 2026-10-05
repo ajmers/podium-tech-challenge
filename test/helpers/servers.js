@@ -1,7 +1,9 @@
+import http from 'node:http';
 import { once } from 'node:events';
 import { createMockUpstream } from '../../mock/upstream.js';
 import { normalizeConfig } from '../../src/config/load.js';
 import { createGateway } from '../../src/gateway.js';
+import { createProxy } from '../../src/proxy.js';
 
 /** Listen on an ephemeral port and return the base URL. */
 async function listen(server) {
@@ -21,6 +23,28 @@ export async function startUpstream(options) {
   const { server, requests } = createMockUpstream(options);
   const url = await listen(server);
   return { url, requests, close: () => close(server) };
+}
+
+/**
+ * Start a bare server that forwards every request to `target` via the proxy
+ * module, with no routing. Returns { url, outcomes, close } where `outcomes`
+ * collects what each forward() call resolved with.
+ */
+export async function startProxy({ target, timeoutMs = 5_000 }) {
+  const proxy = createProxy();
+  const outcomes = [];
+  const server = http.createServer(async (req, res) => {
+    outcomes.push(await proxy.forward(req, res, { target, path: req.url, timeoutMs }));
+  });
+  const url = await listen(server);
+  return {
+    url,
+    outcomes,
+    close: async () => {
+      await close(server);
+      proxy.close();
+    },
+  };
 }
 
 /**

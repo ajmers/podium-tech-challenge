@@ -22,7 +22,11 @@ export function createMockUpstream({ name = 'mock' } = {}) {
     for await (const chunk of req) chunks.push(chunk);
     const bodyText = Buffer.concat(chunks).toString('utf8');
     const url = new URL(req.url, 'http://upstream.local');
-    requests.push({ method: req.method, url: req.url, headers: req.headers, body: bodyText });
+    const record = { method: req.method, url: req.url, headers: req.headers, body: bodyText, aborted: false };
+    requests.push(record);
+    res.on('close', () => {
+      if (!res.writableFinished) record.aborted = true;
+    });
 
     const send = (status, body) => {
       const payload = JSON.stringify(body);
