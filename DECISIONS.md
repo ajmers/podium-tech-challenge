@@ -6,6 +6,9 @@ Prioritization:
     - Auth - start with Auth as the most important feature - making sure unauthorized users can't access or change data is the most important security role of an API gateway
     - rate limiting: Next up are matters concerning production reliability - based on predicted traffic, we should be able to ramp up availability in a controlled fashion rather than having to handle unexpected spikes reactively, and also protect against DDOS
     - Load balancing: crucial in high-traffic production environments
+    - [not started] Request transforms: important for security - strip off headers that should not be allowed except by internal systems
+    - [not started] response transforms: not a security or reliability / performance concern but obviously it's important that we are delivering data in the right shape to customers
+    - [not started] Retry - while obviously very important in a production system in order to keep SLAs, I consider this secondary to to the 'does this work in the happy path' cases as well as 'does the mechanism a way to auto heal / function well in when certain instances are not responding' ; this one is a little bit more of an edge case / nice to have
 
 Proxy:
 - stream request bodies instead of holding in memory to control memory use
