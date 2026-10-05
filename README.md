@@ -93,21 +93,27 @@ gateway.yaml        Example config (the spec)
 
 ## Feature checklist
 
+**Core**
+
 - [x] Load config from CLI arg or `GATEWAY_CONFIG`; fail fast on malformed config
 - [x] `GET /health` returns status and uptime
-- [x] 404 for unmatched routes
-- [x] Route matching (longest prefix wins, segment-boundary aware) + streaming proxy
+- [x] Route matching (longest prefix wins, segment-boundary aware); 404 for unmatched routes
 - [x] Method filtering (405 with `Allow` header)
+- [x] Streaming proxy: 502 when upstream is unreachable, client disconnects cancel the upstream request
 - [x] `strip_prefix`
-- [x] Upstream timeouts (`global_timeout`, per-route `timeout`) → 504; unreachable upstream → 502
-- [ ] Rate limiting (`fixed_window`, `sliding_window`; per `ip` / `global`)
-- [ ] Retries with backoff
-- [ ] Load balancing (`round_robin`, `weighted_round_robin`)
-- [ ] Active health checks
-- [ ] API key auth
+- [x] Upstream timeouts (`global_timeout`, per-route `upstream.timeout`) → 504
+- [x] Per-route stage pipeline for config features (see below)
+
+**Config features** (listed in planned build order)
+
+- [ ] API key auth (`auth.type: api_key`)
+- [ ] Rate limiting: `global_rate_limit` + per-route `rate_limit`; `fixed_window` / `sliding_window`; per `ip` / `global`
+- [ ] Load balancing (`round_robin`, `weighted_round_robin`). *Partial: `targets` is parsed and validated, but only the first target is used*
 - [ ] Circuit breaker
+- [ ] Retries with `fixed` / `exponential` backoff
 - [ ] Request / response header transforms
 - [ ] Request body mapping / response envelope
+- [ ] Active health checks
 
 ## Adding a config feature
 
