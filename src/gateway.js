@@ -1,23 +1,47 @@
 import http from 'node:http';
 import { sendError, sendJson } from './http-utils.js';
+import { buildRouteHandler } from './pipeline.js';
 import { createProxy } from './proxy.js';
 import { createRouter } from './router.js';
+import { DEFAULT_STAGES } from './stages/index.js';
 
 /**
  * Build the gateway HTTP server from a normalized config.
  * Does not call listen() — the caller decides the port (tests use 0).
  *
- * Request flow (planned):
+ * Request flow:
  *   /health  ->  built-in handler (always available, bypasses routing)
  *   else     ->  match route (404 if none, 405 if method not allowed)
- *            ->  route pipeline: auth -> rate limit -> circuit breaker
- *                -> request transform -> proxy (retry / timeout / LB)
- *                -> response transform
+ *            ->  the route's pipeline (see src/pipeline.js and src/stages/)
+ *            ->  proxy to upstream
+ *
+ * Each route's pipeline is built once here, so a stage with invalid config
+ * throws ConfigError at startup rather than on the first request.
+ *
+ * @param {object} config            normalized config (see config/load.js)
+ * @param {object} [options]
+ * @param {() => number} [options.now]  clock, injectable for tests
+ * @param {object[]} [options.stages]   stage list, defaults to DEFAULT_STAGES
  */
-export function createGateway(config, { now = Date.now } = {}) {
+export function createGateway(config, { now = Date.now, stages = DEFAULT_STAGES } = {}) {
   const startedAt = now();
   const router = createRouter(config.routes);
   const proxy = createProxy();
+
+  // Innermost handler of every pipeline: send the request upstream and record
+  // the outcome so outer stages can react to it on the way out.
+  const forward = async (ctx) => {
+    ctx.outcome = await proxy.forward(ctx.req, ctx.res, {
+      target: pickTarget(ctx.route),
+      path: ctx.upstreamPath + ctx.search,
+      timeoutMs: ctx.route.upstream.timeoutMs,
+    });
+  };
+
+  const deps = { gateway: config.gateway, now };
+  const routeHandlers = new Map(
+    config.routes.map((route) => [route, buildRouteHandler(route, stages, forward, deps)]),
+  );
 
   const server = http.createServer((req, res) => {
     handleRequest(req, res).catch((err) => {
@@ -65,11 +89,17 @@ export function createGateway(config, { now = Date.now } = {}) {
     }
 
     const { route, upstreamPath } = match;
-    await proxy.forward(req, res, {
-      target: pickTarget(route),
-      path: upstreamPath + search,
-      timeoutMs: route.upstream.timeoutMs,
-    });
+    const ctx = {
+      req,
+      res,
+      route,
+      upstreamPath,
+      search,
+      clientIp: req.socket.remoteAddress,
+      receivedAt: now(),
+      outcome: null, // set by the proxy: { status, error? }
+    };
+    await routeHandlers.get(route)(ctx);
   }
 
   return server;

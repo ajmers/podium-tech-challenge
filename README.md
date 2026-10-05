@@ -76,6 +76,8 @@ src/
   index.js          CLI entry: load config, start server, graceful shutdown
   gateway.js        HTTP server + request pipeline
   router.js         Route matching, 404/405, strip_prefix
+  pipeline.js       Per-route stage pipeline (how features plug in)
+  stages/           One module per config feature; index.js sets the order
   proxy.js          Streams requests to an upstream; timeouts, 502/504
   config/
     load.js         YAML loading, validation, normalization
@@ -106,5 +108,13 @@ gateway.yaml        Example config (the spec)
 - [ ] Circuit breaker
 - [ ] Request / response header transforms
 - [ ] Request body mapping / response envelope
+
+## Adding a config feature
+
+Each feature is a *stage*: `{ name, create(route, deps) }`. `create` runs once
+per route at startup. It validates the route's config block (throwing
+`ConfigError`) and returns a `(ctx, next)` handler, or `null` if the route
+doesn't use the feature. Add the module to `src/stages/` and list it in
+`src/stages/index.js`. See the comment at the top of `src/pipeline.js`.
 
 See `DECISIONS.md` for prioritization and design trade-offs.

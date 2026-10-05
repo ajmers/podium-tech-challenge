@@ -6,4 +6,8 @@ Proxy:
 - stream request bodies instead of holding in memory to control memory use
 - global timeout was chosen to be the time until the upstream *starts* responding. If it hasn't started in time we return 504, but once it starts the body can take as long as it needs
 
-
+Pipeline:
+- added a request pipeline modeled on nginx's phases and modules
+- makes extensibility very clear-cut
+- makes ordering of gateway features explicit and easy to read
+- cleans up the gateway.js file so it doesn't grow forever

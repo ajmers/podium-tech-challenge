@@ -11,9 +11,13 @@ async function main() {
     process.exit(2);
   }
 
+  // Stages validate their own config blocks while the gateway is built, so
+  // both steps can report ConfigError.
   let config;
+  let server;
   try {
     config = await loadConfigFile(configPath);
+    server = createGateway(config);
   } catch (err) {
     if (err instanceof ConfigError) {
       console.error(`Config error: ${err.message}`);
@@ -23,7 +27,6 @@ async function main() {
   }
 
   const port = Number(process.env.PORT ?? config.gateway.port);
-  const server = createGateway(config);
 
   server.on('error', (err) => {
     console.error(`Failed to start gateway: ${err.message}`);
