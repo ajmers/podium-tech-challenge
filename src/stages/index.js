@@ -1,4 +1,5 @@
 import { authStage } from './auth.js';
+import { circuitBreakerStage } from './circuit-breaker.js';
 import { rateLimitStage } from './rate-limit.js';
 
 /**
@@ -11,7 +12,7 @@ import { rateLimitStage } from './rate-limit.js';
  * To add a feature: create a stage module in this directory (see
  * src/pipeline.js for the shape) and add it to this list.
  */
-export const DEFAULT_STAGES = [authStage, rateLimitStage];
+export const DEFAULT_STAGES = [authStage, rateLimitStage, circuitBreakerStage];
 
 // Route-level config blocks the schema defines. Each is handled by the stage
 // of the same name, or (for upstream-level features) elsewhere.

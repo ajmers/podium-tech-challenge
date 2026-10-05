@@ -78,7 +78,9 @@ it won't conflict with a gateway already running on 8080. It has four tabs:
 - **Routes**: the loaded routes and which of their config features are implemented.
 - **Test suite**: runs `npm test` and streams the output.
 
-The upstream chips at the top let you stop and start each mock to see failures live.
+The upstream chips at the top let you stop and start each mock to see failures live; they
+flash when they receive a request. The circuit breaker strip shows each breaker's state
+(closed / open with countdown / half-open), updated every second.
 Set `DEMO_PORT` or `GATEWAY_PORT` to change ports. The scenarios assume the routes in
 `gateway.yaml`; the playground works with any config (`npm run demo -- other.yaml`).
 
@@ -138,7 +140,7 @@ gateway.yaml        Example config (the spec)
 - [x] API key auth (`auth.type: api_key`): 401 on missing/invalid key, constant-time comparison, key header not forwarded upstream
 - [x] Rate limiting: `global_rate_limit` + per-route `rate_limit` (route replaces global); `fixed_window` / `sliding_window`; per `ip` / `global`; 429 + `Retry-After`
 - [x] Load balancing: `round_robin` (default) and `weighted_round_robin` (smooth, nginx-style: 3:1 gives A A B A)
-- [ ] Circuit breaker
+- [x] Circuit breaker: closed → open (503 `service_unavailable` + `retry_after`) → half-open single trial; any 5xx (incl. gateway 502/504) counts as a failure
 - [ ] Retries with `fixed` / `exponential` backoff
 - [ ] Request / response header transforms
 - [ ] Request body mapping / response envelope

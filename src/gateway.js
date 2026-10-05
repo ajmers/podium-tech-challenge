@@ -60,6 +60,10 @@ export function createGateway(config, { now = Date.now, stages = DEFAULT_STAGES 
 
   server.on('close', () => proxy.close());
 
+  /** Read-only snapshot of stage state per route (e.g. circuit breaker status). */
+  server.inspectRoutes = () =>
+    config.routes.map((route) => ({ path: route.path, stages: routeHandlers.get(route).inspect() }));
+
   async function handleRequest(req, res) {
     // Parsing also resolves "." and ".." segments, so "/api/users/../internal"
     // is matched (and forwarded) as "/api/internal" and can't sneak past a

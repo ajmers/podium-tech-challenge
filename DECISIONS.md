@@ -23,6 +23,10 @@ Load balancing:
 - use same algorithm as nginx for weighted round robin (smooth weighted round robin)
 - round robin ignores weights and is the default if balance is not specified
 
+Circuit breaker:
+- what counts as a failure: 5xx responses
+- a successful call within the circuit breaker window doesn't 'reset' the state
+
 
 What I'd implement next with more time:
 - Redis (or similar cacheing) to store counters for timeout (they live in memory, one gateway process at a time). Running several instances of our gateway would 

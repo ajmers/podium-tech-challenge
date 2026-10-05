@@ -36,11 +36,17 @@
  */
 export function buildRouteHandler(route, stages, terminal, deps) {
   const handlers = [];
+  const inspectors = {};
   for (const stage of stages) {
     const handler = stage.create(route, deps);
-    if (handler) handlers.push(handler);
+    if (!handler) continue;
+    handlers.push(handler);
+    // A stage can optionally expose read-only state for observability.
+    if (typeof handler.inspect === 'function') inspectors[stage.name] = handler.inspect;
   }
-  return compose(handlers, terminal);
+  const run = compose(handlers, terminal);
+  run.inspect = () => Object.fromEntries(Object.entries(inspectors).map(([name, inspect]) => [name, inspect()]));
+  return run;
 }
 
 /** Compose `(ctx, next)` handlers around a terminal `(ctx)` handler. */
