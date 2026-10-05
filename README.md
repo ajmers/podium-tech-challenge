@@ -75,6 +75,8 @@ won't conflict with a gateway already on port 8080.
 src/
   index.js          CLI entry: load config, start server, graceful shutdown
   gateway.js        HTTP server + request pipeline
+  router.js         Route matching, 404/405, strip_prefix
+  proxy.js          Streams requests to an upstream; timeouts, 502/504
   config/
     load.js         YAML loading, validation, normalization
     duration.js     "30s" / "500ms" duration parsing
@@ -92,10 +94,10 @@ gateway.yaml        Example config (the spec)
 - [x] Load config from CLI arg or `GATEWAY_CONFIG`; fail fast on malformed config
 - [x] `GET /health` returns status and uptime
 - [x] 404 for unmatched routes
-- [ ] Route matching + basic proxying
-- [ ] Method filtering (405)
-- [ ] `strip_prefix`
-- [ ] Upstream timeouts (`global_timeout`, per-route `timeout`)
+- [x] Route matching (longest prefix wins, segment-boundary aware) + streaming proxy
+- [x] Method filtering (405 with `Allow` header)
+- [x] `strip_prefix`
+- [x] Upstream timeouts (`global_timeout`, per-route `timeout`) → 504; unreachable upstream → 502
 - [ ] Rate limiting (`fixed_window`, `sliding_window`; per `ip` / `global`)
 - [ ] Retries with backoff
 - [ ] Load balancing (`round_robin`, `weighted_round_robin`)

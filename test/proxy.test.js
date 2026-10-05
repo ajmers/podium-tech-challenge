@@ -1,23 +1,9 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import http from 'node:http';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { buildUpstreamUrl } from '../src/proxy.js';
+import { rawRequest } from './helpers/http.js';
 import { startProxy, startUpstream } from './helpers/servers.js';
-
-/** Raw http.request so tests can send headers fetch() refuses to set. */
-function rawRequest(url, { method = 'GET', headers = {} } = {}) {
-  return new Promise((resolve, reject) => {
-    const req = http.request(url, { method, headers, agent: false }, (res) => {
-      let body = '';
-      res.setEncoding('utf8');
-      res.on('data', (chunk) => (body += chunk));
-      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body }));
-    });
-    req.on('error', reject);
-    req.end();
-  });
-}
 
 describe('buildUpstreamUrl', () => {
   it('joins origin and path, keeping the query string', () => {
